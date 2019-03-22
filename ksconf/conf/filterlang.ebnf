@@ -2,21 +2,21 @@
 
 start
     =
-    filter
+    filter_chain
 #    | selection:{selection}* [ projection:projection ]
 #    | projection:projection
     $
     ;
 
-filter::Filter
+filter_chain::FilterChain
     =
     { filters:filter_expression }*
     ;
 
-filter_expression::FilterExpression
+filter_expression   #::FilterExpression
     =
-    | selection:selection
-    | projection:projection
+    | filter:selection
+    | filter:projection
     ;
 
 
@@ -47,7 +47,7 @@ stanza_selection::StanzaSelection
 
 projection::Projection
     =
-    '{' projection_args:','%{ projection_element }* '}'
+    '{' projection_args:','.{ projection_element }* '}'
     ;
 
 projection_element

@@ -57,14 +57,14 @@ class FilterSemantics(object):
     Really simple cleanup things to make the model easier to work with.  The real work is done in
     the NodeWalker class.
     """
-
     def string(self, ast):
         return ast.value
-
 
     def field(self, ast):
         return ast.field
 
+    def filter_expression(self, ast):
+        return ast.filter
 
     def function(self, ast):
         if ast.name not in known_functions:
@@ -77,23 +77,33 @@ class FilterSemanticsModelBuilder(ModelBuilderSemantics, FilterSemantics):
     pass
 
 
-
 class FilterWalker(NodeWalker):
 
     def walk_object(self, node, *args):
-        #print("WALK OBJECT {!r}".format(node))
+        print("WALK OBJECT {}".format(type(node).__name__))
         if hasattr(node, "children") and node.children is not None:
             return [self.walk(c, *args) for c in node.children()]
         else:
             return node
 
-    def walk_Filter(self, node, data):
-        print("FILTER!!!  {}".format(dir(node)))
-        return self.walk(node.filters, data)
+    #def walk_FilterExpression(self, node, data):
+    # return self.walk(node.filter, data)
 
-    def walk_FilterExpression(self, node, data):
-        print("WALK FILTER EXPRESSION!")
-        return [ self.walk(c, data) for c in node.children() ]
+    def walk_FilterChain(self, node, data):
+        # Inside a single chain, 'data' is passed sequentially down from filter to filter (like unix pipes)
+
+        children = node.children()
+        print("EVALUATING FILTER CHAIN!!!  {}  KIDS=[{}]".format(type(node).__name__, children))
+        data = dict(data)      # Shallow copy good enough???
+        for child in children:
+            print("    Running for {}    DATA[in]={}".format(json.dumps(child.asjson()), data))
+            data = self.walk(child, data)
+        return data
+        #return self.walk(node.filters, data)
+
+#    def walk_FilterExpression(self, node, data):
+#        print("WALK FILTER EXPRESSION!")
+#        return [ self.walk(c, data) for c in node.children() ]
 
     def walk_Selection(self, node, data):
         print("WALK SELECTION!")
@@ -110,30 +120,34 @@ class FilterWalker(NodeWalker):
             for stz, d in data.items():
                 if d.get(key, None) == s:
                     d2[stz] = d
-
         print("WALK ATTRSELECTION {!r}".format(node))
-        return [ ("ATTR-SELECTION", node.op, key, s, d2) ]
+        return d2
 
-    def walk__stanza_selection(self, node, data):
+    def walk_StanzaSelection(self, node, data):
         # node.stanza
         print("Stanza SELECTION:   stanza='{}'".format(node.stanza))
-
         d2 = {}
         for key, d in data.items():
             if key == node.stanza:
                 d2[key] = d
+        print("SELECTION:   children:  {}".format(node.children()))
         # How to handle
         return d2
 
-    def walk__projection(self, node, *args):
+    def walk_Projection(self, node, data):
         # node.projection_args, node.projection_element
-        #return self.walk(node.left) * self.walk(node.right)
-        pass
+        print("PROJECTION:      {}".format(json.dumps(node.asjson())))
+        keep_fields = set(node.projection_args)
+        o = {}
+        for stanza, d in data.items():
+            n = {key:value for key,value in d.items() if key in keep_fields}
+            if n:
+                o[stanza] = n
+        return o
 
     def walk__function(self, node, *args):
         # node.name, node.args
-        #return self.walk(node.left) * self.walk(node.right)
-        pass
+        raise NotImplementedError
 
 
 def parse_and_walk_model():
@@ -155,9 +169,9 @@ def parse_and_walk_model():
             "f2": "2",
             "f3": "3",
         },
-        "my_search": {
-            "search" : "| noop",
-            "f1": "true",
+        "mysearch": {
+            "search": "| noop",
+            "f1": "1",
         }
     }
 
@@ -185,9 +199,9 @@ def parse_and_walk_model():
 
     expr = "'attr' == \"value\""
     expr = """
-    'f1' == "1"
+    'f1' == "1" [stanza1]
     """
-    expr = "[stanza1]"
+    #expr = "[stanza1] { 'f1'=\"red\", f3, f2, f19} f1==\"1\" "
 
     print("EXPR:   {}".format(expr))
     parser = tatsu.compile(grammar)
