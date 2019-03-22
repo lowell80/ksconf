@@ -77,11 +77,15 @@ class FilterSemantics(object):
 class FilterSemanticsModelBuilder(ModelBuilderSemantics, FilterSemantics):
     pass
 
+def debug(*args,**kwargs):
+    pass
+# debug = print
+
 
 class FilterWalker(NodeWalker):
 
     def walk_object(self, node, *args):
-        print("WALK OBJECT {}".format(type(node).__name__))
+        debug("WALK OBJECT {}".format(type(node).__name__))
         if hasattr(node, "children") and node.children is not None:
             return [self.walk(c, *args) for c in node.children()]
         else:
@@ -94,10 +98,10 @@ class FilterWalker(NodeWalker):
         # Inside a single chain, 'data' is passed sequentially down from filter to filter (like unix pipes)
 
         children = node.children()
-        print("EVALUATING FILTER CHAIN!!!  {}  KIDS=[{}]".format(type(node).__name__, children))
+        debug("EVALUATING FILTER CHAIN!!!  {}  KIDS=[{}]".format(type(node).__name__, children))
         data = dict(data)      # Shallow copy good enough???
         for child in children:
-            print("    Running for {}    DATA[in]={}".format(json.dumps(child.asjson()), data))
+            debug("    Running for {}    DATA[in]={}".format(json.dumps(child.asjson()), data))
             data = self.walk(child, data)
         return data
         #return self.walk(node.filters, data)
@@ -107,7 +111,7 @@ class FilterWalker(NodeWalker):
 #        return [ self.walk(c, data) for c in node.children() ]
 
     def walk_Selection(self, node, data):
-        print("WALK SELECTION!")
+        debug("WALK SELECTION!")
         return [ self.walk(c, data) for c in node.children() ]
 
     def walk_AttrSelection(self, node, data):
@@ -121,23 +125,23 @@ class FilterWalker(NodeWalker):
             for stz, d in data.items():
                 if d.get(key, None) == s:
                     d2[stz] = d
-        print("WALK ATTRSELECTION {!r}".format(node))
+        debug("WALK ATTRSELECTION {!r}".format(node))
         return d2
 
     def walk_StanzaSelection(self, node, data):
         # node.stanza
-        print("Stanza SELECTION:   stanza='{}'".format(node.stanza))
+        debug("Stanza SELECTION:   stanza='{}'".format(node.stanza))
         d2 = {}
         for key, d in data.items():
             if key == node.stanza:
                 d2[key] = d
-        print("SELECTION:   children:  {}".format(node.children()))
+        debug("SELECTION:   children:  {}".format(node.children()))
         # How to handle
         return d2
 
     def walk_Projection(self, node, data):
         # node.projection_args, node.projection_element
-        print("PROJECTION:      {}".format(json.dumps(node.asjson())))
+        debug("PROJECTION:      {}".format(json.dumps(node.asjson())))
         keep_fields = set(node.projection_args)
         o = {}
         for stanza, d in data.items():
@@ -160,7 +164,8 @@ class ConfFilterLang(object):
     def _grammar(self):
         if self.__grammar is None:
             ebnf_file = os.path.join(os.path.dirname(__file__), "filterlang.ebnf")
-            self.__grammar = open(ebnf_file).read()
+            with open(ebnf_file) as stream:
+                self.__grammar = stream.read()
         return self.__grammar
 
     @property
@@ -275,3 +280,4 @@ def parse_and_walk_model():
 
 if __name__ == '__main__':
     parse_and_walk_model()
+    debug = print
