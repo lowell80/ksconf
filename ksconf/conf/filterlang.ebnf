@@ -1,0 +1,128 @@
+@@grammar::ConfFilteLang
+
+start
+    =
+    filter
+#    | selection:{selection}* [ projection:projection ]
+#    | projection:projection
+    $
+    ;
+
+filter::Filter
+    =
+    { filters:filter_expression }*
+    ;
+
+filter_expression::FilterExpression
+    =
+    | selection:selection
+    | projection:projection
+    ;
+
+
+## NEED TO ADD:   "AND"  "OR" logic support...
+
+expression
+    =
+    | field
+    | string
+    | function_call
+    ;
+
+selection
+    =
+    | stanza_selection
+    | attribute_selection
+    ;
+
+attribute_selection::AttrSelection
+    =
+    key:field op:comparison str:string
+    ;
+
+stanza_selection::StanzaSelection
+    =
+#    '[' stanza:/[^\]]+/ ']'
+    '[' stanza:rawstr ']'
+    ;
+
+projection::Projection
+    =
+    '{' projection_args:','%{ projection_element }* '}'
+    ;
+
+projection_element
+    =
+    | field '=' projection_assignment
+    | field
+    ;
+
+projection_assignment
+    =
+    | string
+    | function_call
+    ;
+
+function_call::Function
+    =
+    name:function_name '(' ~ args:function_args ')'
+    ;
+
+function_name
+    =
+    | 'append'
+    | 'coalesce'
+    | 'if'
+    | 'ltrim'
+    | 'match'
+    | 'md5'
+    | 'nullif'
+    | 'replace'
+    | 'rtrim'
+    | 'split'
+    | 'substr'
+    | 'trim'
+    | 'upper'
+    | 'lower'
+    ;
+
+function_args
+   =
+   ','.{ expression }*
+   ;
+
+subexpression
+    =
+    '(' ~ @:expression ')'
+    ;
+
+rawstr::str
+    =
+    /[a-zA-Z][\w_. -]*\w/
+    ;
+
+regex::str
+    =
+    '/' re:/[^\/]+/ '/'
+    ;
+
+string
+    =
+    '"' value:/[^"]+/ '"';
+
+
+field
+    =
+    ( field_simple | field_quoted )
+    ;
+
+
+field_simple = field:/[A-Za-z]\w*/;
+field_quoted = "'" field:/[^']+/ "'";
+
+comparison
+    =
+    | '=='
+    | '<>'
+    | '!='
+    ;

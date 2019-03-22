@@ -106,6 +106,7 @@ setup(name="kintyre-splunk-conf",
       install_requires=[
         "six",
         "entrypoints",
+        "TatSu",
       ],
       # Wacky reason for this explained in ksconf/setup_entrypoints.py
       entry_points = get_entrypoints_setup(),
