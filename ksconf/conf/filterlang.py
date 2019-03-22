@@ -1,4 +1,5 @@
 from __future__ import absolute_import, unicode_literals
+import os
 
 import six
 
@@ -150,10 +151,43 @@ class FilterWalker(NodeWalker):
         raise NotImplementedError
 
 
+
+class ConfFilterLang(object):
+    __grammar = None
+    __parser = None
+
+    @property
+    def _grammar(self):
+        if self.__grammar is None:
+            ebnf_file = os.path.join(os.path.dirname(__file__), "filterlang.ebnf")
+            self.__grammar = open(ebnf_file).read()
+        return self.__grammar
+
+    @property
+    def _parser(self):
+        if self.__parser is None:
+            self.__parser = tatsu.compile(self._grammar, asmodel=True,
+                                          semantics=FilterSemanticsModelBuilder())
+        return self.__parser
+
+    def evaluate(self, expr, conf):
+        model = self._parser.parse(expr)
+        walker = FilterWalker()
+        return walker.walk(model, conf)
+
+# Singleton
+cfl = ConfFilterLang()
+
+
+
+def evaluate_filter(expr, conf):
+    return cfl.evaluate(expr, conf)
+
+
+
+
 def parse_and_walk_model():
-    import os
-    ebnf_file = os.path.join(os.path.dirname(__file__), "filterlang.ebnf")
-    grammar = open(ebnf_file).read()
+    grammar = cfl._grammar
     '''
     c = tatsu.to_python_sourcecode(grammar, name="ConfFilteLang", filename="filterlang_grammar.py")
     print(" ==== to_python_sourcecode: ")
@@ -234,9 +268,8 @@ def parse_and_walk_model():
 
     print("\n\n")
     print('# WALKER RESULT IS:')
-    print(FilterWalker(data).walk(model, data))
+    print(FilterWalker().walk(model, data))
     print("")
-
 
 
 
