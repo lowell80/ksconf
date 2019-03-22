@@ -51,39 +51,41 @@ upper
 """.split()
 
 
-class FilterSemantics(ModelBuilderSemantics):
+
+class FilterSemantics(object):
+    """
+    Really simple cleanup things to make the model easier to work with.  The real work is done in
+    the NodeWalker class.
+    """
 
     def string(self, ast):
-        #print("STRING TYPE:   {}".format(type(args[0])))
         return ast.value
+
 
     def field(self, ast):
         return ast.field
+
 
     def function(self, ast):
         if ast.name not in known_functions:
             # There's probably a better way to handle this... better exception class maybe?
             raise ValueError("Unknown function named {}.".format(ast.name))
-        return
+        return ast
+
+
+class FilterSemanticsModelBuilder(ModelBuilderSemantics, FilterSemantics):
+    pass
 
 
 
 class FilterWalker(NodeWalker):
 
     def walk_object(self, node, *args):
-        print("WALK OBJECT {!r}".format(node))
+        #print("WALK OBJECT {!r}".format(node))
         if hasattr(node, "children") and node.children is not None:
             return [self.walk(c, *args) for c in node.children()]
         else:
             return node
-
-    ''' # Moved to semantics layer...
-    def walk_QuotedString(self, node, *args):
-        return node.value
-
-    def walk_Field(self, node, *args):
-        return node.field
-    '''
 
     def walk_Filter(self, node, data):
         print("FILTER!!!  {}".format(dir(node)))
@@ -99,10 +101,6 @@ class FilterWalker(NodeWalker):
 
     def walk_AttrSelection(self, node, data):
         # node.key, node.op, node.str
-        #return self.walk(node.left) + self.walk(node.right)
-
-        #key = self.walk(node.key)
-        #s = self.walk(node.str)
         key = node.key
         s = node.str
         op = node.op
@@ -110,7 +108,7 @@ class FilterWalker(NodeWalker):
         d2 = {}
         if op in ("=", "=="):
             for stz, d in data.items():
-                if d.get(key,None) == s:
+                if d.get(key, None) == s:
                     d2[stz] = d
 
         print("WALK ATTRSELECTION {!r}".format(node))
@@ -139,7 +137,9 @@ class FilterWalker(NodeWalker):
 
 
 def parse_and_walk_model():
-    grammar = open('filterlang.ebnf').read()
+    import os
+    ebnf_file = os.path.join(os.path.dirname(__file__), "filterlang.ebnf")
+    grammar = open(ebnf_file).read()
     '''
     c = tatsu.to_python_sourcecode(grammar, name="ConfFilteLang", filename="filterlang_grammar.py")
     print(" ==== to_python_sourcecode: ")
@@ -197,13 +197,12 @@ def parse_and_walk_model():
     del parser
 
 
-    print("")
-    print("AST WITH FilterSemantics()")
-
+    print("\n\n")
+    print("AST   with ** FilterSemantics() **")
     parser = tatsu.compile(grammar, semantics=FilterSemantics())
     ast = parser.parse(expr)
     print("AST:")
-    pprint(ast, indent=4)
+    print(json.dumps(ast, indent=4))
     del parser
 
 
@@ -212,22 +211,18 @@ def parse_and_walk_model():
     #parser = tatsu.compile(grammar, asmodel=True, semantics=FilterSemantics()) # ,
     #                       #start="attribute_selection")
 
-    parser = tatsu.compile(grammar, asmodel=True, semantics=FilterSemantics())
+    parser = tatsu.compile(grammar, asmodel=True, semantics=FilterSemanticsModelBuilder())
     model = parser.parse(expr) #, parseinfo=True) #, trace=True, colorize=True)
 
+    print("\n\n")
+    print("# MODEL OUTPUT:")
+    print(model)
 
-
+    print("\n\n")
     print('# WALKER RESULT IS:')
     print(FilterWalker(data).walk(model, data))
     print("")
 
-    print("# MODEL OUTPUT:")
-    print(model)
-    print("")
-
-
- # parseInfo=True
- #   print(model[0].rule)
 
 
 
