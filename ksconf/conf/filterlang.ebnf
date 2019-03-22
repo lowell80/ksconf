@@ -1,4 +1,4 @@
-@@grammar::ConfFilteLang
+@@grammar::ConfFilterLang
 
 start
     =
@@ -42,7 +42,6 @@ attribute_selection::AttrSelection
 
 stanza_selection::StanzaSelection
     =
-#    '[' stanza:/[^\]]+/ ']'
     '[' stanza:rawstr ']'
     ;
 
@@ -98,7 +97,7 @@ subexpression
 
 rawstr::str
     =
-    /[a-zA-Z][\w_. -]*\w/
+    /[a-zA-Z][\w_. -]*\w*/
     ;
 
 regex::str
@@ -108,7 +107,8 @@ regex::str
 
 string
     =
-    '"' value:/[^"]+/ '"';
+    '"' value:/[^"]+/ '"'
+    ;
 
 
 field
